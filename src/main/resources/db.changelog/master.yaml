@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db.changelog/1.0-create-type_service-table.yaml
+  - include:
+      file: db.changelog/2.0-create-service_connections-table.yaml

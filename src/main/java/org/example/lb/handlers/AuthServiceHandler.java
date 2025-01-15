@@ -6,24 +6,22 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 
 @Component
-public class AuthServiceHandler  implements ServiceHandler {
-    private final ConcurrentHashMap<String, String> authServices = new ConcurrentHashMap<>();
+public class AuthServiceHandler implements ServiceHandler {
+    private final List<String> authServices = new ArrayList<>();
 
     @Override
     public void handle(List<ServiceConnection> services) {
         for (ServiceConnection service : services) {
-            authServices.put(service.getTypeService().toString(), service.getAddress());
+            if (!authServices.contains(service.getAddress())) {
+                authServices.add(service.getAddress());
+            }
         }
     }
 
-    public String getAuthService(String name) {
-        return authServices.get(name);
-    }
     public List<String> getAllAddresses() {
-        return new ArrayList<>(authServices.values());
+        return new ArrayList<>(authServices);
     }
 }

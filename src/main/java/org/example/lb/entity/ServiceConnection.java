@@ -21,7 +21,7 @@ public class ServiceConnection {
     private Integer id;
     @Column(name = "address", nullable = false, unique = true)
     private String address;
-    @ManyToOne()
-    @JoinColumn(name = "type_id", nullable = false)
-    private TypeService typeService;
+    @Enumerated(EnumType.STRING)
+    @Column(name="name",nullable = false)
+    private Type type;
 }

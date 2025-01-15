@@ -1,35 +1,33 @@
 package org.example.lb.service;
 
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.lb.handlers.AuthServiceHandler;
 import org.example.lb.handlers.BillingServiceHandler;
 import org.example.lb.handlers.ServiceHandler;
 import org.example.lb.handlers.ServiceHandlerContext;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class BillingService {
-    @Autowired
-    private RestTemplate restTemplate;
-    @Autowired
-    private ServiceHandlerContext serviceHandlerContext;
-    @Autowired
-    private AuthService authService;
-    @Autowired
-    private DataConnectionService dataConnectionService;
-    int numberService=0;
 
-    public byte[] generatePdf(String login,String password) {
-        String url = getAdress() + "/reports/commissions/pdf";
-        String token = authService.getToken(login,password);
+    private final RestTemplate restTemplate;
+    private final ServiceHandlerContext serviceHandlerContext;
+    private final AuthService authService;
+    private final DataConnectionService dataConnectionService;
+    private AtomicInteger numberService;
+
+    public byte[] generatePdf(String login, String password) {
+        String url = getAddress("/reports/commissions/pdf");
+        String token = authService.getToken(login, password);
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + token);
         HttpEntity<Void> request = new HttpEntity<>(headers);
@@ -39,41 +37,46 @@ public class BillingService {
                 request,
                 byte[].class
         );
+
         if (response.getStatusCode() == HttpStatus.OK) {
             return response.getBody();
         } else {
             throw new RuntimeException("Failed to generate PDF. Status code: " + response.getStatusCode());
         }
     }
-    String getAdress(){
-        ServiceHandler billingHandler = serviceHandlerContext.getHandler("BILLING");
-        if ( billingHandler instanceof BillingServiceHandler) {
-            BillingServiceHandler specificHandler = (BillingServiceHandler) billingHandler;
-            List<String> addresses = specificHandler.getAllAddresses();
-            if (addresses.isEmpty()) {
-                throw new IllegalStateException("No billing services available");
-            }
-            boolean health = false;
-            String address = "";
-            int attempts = 0;
-            int maxAttempts = addresses.size();
-            while (!health && attempts < maxAttempts) {
-                if (numberService >= addresses.size()) {
-                    numberService = 0;
-                }
 
-                address = addresses.get(numberService);
-                numberService++;
-                attempts++;
-                health = dataConnectionService.healthCheck(address);
-            }
-            if (!health) {
-                throw new IllegalStateException("No available services");
-            }
-            return address;
-        } else {
-            throw new IllegalStateException("Handler for Billing is not of expected type AuthServiceHandler");
+    private String getAddress(String supportStr) {
+        List<String> addresses = getAllAddresses();
+        String address = getHealthyAddress(addresses);
+        return address + supportStr;
+    }
+
+    private List<String> getAllAddresses() {
+        ServiceHandler billingHandler = serviceHandlerContext.getHandler("BILLING");
+        BillingServiceHandler specificHandler = (BillingServiceHandler) billingHandler;
+        List<String> addresses = specificHandler.getAllAddresses();
+        if (addresses.isEmpty()) {
+            throw new IllegalStateException("No billing services available");
         }
+        return addresses;
+    }
+
+    private String getHealthyAddress(List<String> addresses) {
+        int attempts = 0;
+        int maxAttempts = addresses.size();
+
+        while (attempts < maxAttempts) {
+            int currentIndex = numberService.getAndUpdate(index -> (index + 1) % addresses.size());
+            String address = addresses.get(currentIndex);
+
+            if (dataConnectionService.healthCheck(address)) {
+                return address;
+            }
+
+            attempts++;
+        }
+
+        throw new IllegalStateException("No available services");
     }
 
 }

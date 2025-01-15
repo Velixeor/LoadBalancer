@@ -16,7 +16,7 @@ public class CoreServiceHandler implements ServiceHandler {
     @Override
     public void handle(List<ServiceConnection> services) {
         for (ServiceConnection service : services) {
-            coreServices.put(service.getTypeService().toString(), service.getAddress());
+            coreServices.put(service.getType().toString(), service.getAddress());
         }
     }
 

@@ -31,7 +31,7 @@ public class DataConnectionService {
     public void initializeHandlers() {
         List<ServiceConnection> allServices = serviceEntityRepository.findAll();
         Map<String, List<ServiceConnection>> groupedServices = allServices.stream()
-                .collect(Collectors.groupingBy(service -> service.getTypeService().getType().toString()));
+                .collect(Collectors.groupingBy(service -> service.getType().toString()));
         groupedServices.forEach((type, services) -> {
             try {
                 serviceHandlerContext.handleServices(type, services);

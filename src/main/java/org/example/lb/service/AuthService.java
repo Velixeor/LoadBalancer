@@ -22,12 +22,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class AuthService {
 
     private final RestTemplate restTemplate;
-    private final ServiceHandlerContext serviceHandlerContext;
-    private final DataConnectionService dataConnectionService;
+    private final SystemService systemService;
     private AtomicInteger numberService;
 
     public String getToken(String login, String password) {
-        String url = getAddress("/auth/token");
+        String url = systemService.getAddress("/auth/token","AUTH",numberService);
         ResponseEntity<Map> response = restTemplate.postForEntity(url, prepareRequest(login, password), Map.class);
         if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
             Map<String, Object> body = response.getBody();
@@ -51,37 +50,4 @@ public class AuthService {
         return request;
     }
 
-    private String getAddress(String supportStr) {
-        List<String> addresses = getAllAddresses();
-        String address = getHealthyAddress(addresses);
-        return address + supportStr;
-    }
-
-    private List<String> getAllAddresses() {
-        ServiceHandler authHandler = serviceHandlerContext.getHandler("AUTH");
-        AuthServiceHandler specificHandler = (AuthServiceHandler) authHandler;
-        List<String> addresses = specificHandler.getAllAddresses();
-        if (addresses.isEmpty()) {
-            throw new IllegalStateException("No auth services available");
-        }
-        return addresses;
-    }
-
-    private String getHealthyAddress(List<String> addresses) {
-        int attempts = 0;
-        int maxAttempts = addresses.size();
-
-        while (attempts < maxAttempts) {
-            int currentIndex = numberService.getAndUpdate(index -> (index + 1) % addresses.size());
-            String address = addresses.get(currentIndex);
-
-            if (dataConnectionService.healthCheck(address)) {
-                return address;
-            }
-
-            attempts++;
-        }
-
-        throw new IllegalStateException("No available services");
-    }
 }

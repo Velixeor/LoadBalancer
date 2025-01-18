@@ -20,13 +20,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class BillingService {
 
     private final RestTemplate restTemplate;
-    private final ServiceHandlerContext serviceHandlerContext;
+    private final SystemService systemService;
     private final AuthService authService;
-    private final DataConnectionService dataConnectionService;
     private AtomicInteger numberService;
 
     public byte[] generatePdf(String login, String password) {
-        String url = getAddress("/reports/commissions/pdf");
+        String url = systemService.getAddress("/reports/commissions/pdf","BILLING",numberService);
         String token = authService.getToken(login, password);
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + token);
@@ -43,40 +42,6 @@ public class BillingService {
         } else {
             throw new RuntimeException("Failed to generate PDF. Status code: " + response.getStatusCode());
         }
-    }
-
-    private String getAddress(String supportStr) {
-        List<String> addresses = getAllAddresses();
-        String address = getHealthyAddress(addresses);
-        return address + supportStr;
-    }
-
-    private List<String> getAllAddresses() {
-        ServiceHandler billingHandler = serviceHandlerContext.getHandler("BILLING");
-        BillingServiceHandler specificHandler = (BillingServiceHandler) billingHandler;
-        List<String> addresses = specificHandler.getAllAddresses();
-        if (addresses.isEmpty()) {
-            throw new IllegalStateException("No billing services available");
-        }
-        return addresses;
-    }
-
-    private String getHealthyAddress(List<String> addresses) {
-        int attempts = 0;
-        int maxAttempts = addresses.size();
-
-        while (attempts < maxAttempts) {
-            int currentIndex = numberService.getAndUpdate(index -> (index + 1) % addresses.size());
-            String address = addresses.get(currentIndex);
-
-            if (dataConnectionService.healthCheck(address)) {
-                return address;
-            }
-
-            attempts++;
-        }
-
-        throw new IllegalStateException("No available services");
     }
 
 }

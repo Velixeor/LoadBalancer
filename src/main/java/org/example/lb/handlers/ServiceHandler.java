@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface ServiceHandler {
     void handle(List<ServiceConnection> services);
+    List<String> getAllAddresses();
 }
